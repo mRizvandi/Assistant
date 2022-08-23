@@ -321,16 +321,4 @@ namespace AryaVtd.Orca.Assistant
 
 		#endregion
 	}
-
-	public static class DateTimeExtentions
-	{
-		public static DateTime ParseDateInvariant(this string date, bool addLastTimeOfDay = false)
-		{
-			date = date.Replace("-", "/");
-			if (addLastTimeOfDay)
-				return DateTime.Parse(date + " 23:59:59", CultureInfo.InvariantCulture);
-			else
-				return DateTime.Parse(date, CultureInfo.InvariantCulture);
-		}
-	}
 }

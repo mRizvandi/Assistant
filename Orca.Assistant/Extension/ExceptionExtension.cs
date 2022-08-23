@@ -5,28 +5,27 @@
 
 using System.Text;
 
-namespace AryaVtd.Orca.Assistant
+namespace AryaVtd.Orca.Assistant;
+
+public static class ExceptionExtension
 {
-    public static class ExceptionExtension
+    /// <summary>
+    /// Get all inner Exception in side of Exception to log or view on Development environment
+    /// </summary>
+    public static string GetMessages(this Exception exception)
     {
-        /// <summary>
-        /// Get all inner Exception in side of Exception to log or view on Development environment
-        /// </summary>
-        public static string GetMessages(this Exception exception)
+        StringBuilder sb = new();
+
+        if (exception is not null)
         {
-            StringBuilder sb = new();
-
-            if (exception is not null)
+            sb.Append(exception.Message);
+            if (exception.InnerException is not null)
             {
-                sb.Append(exception.Message);
-                if (exception.InnerException is not null)
-                {
-                    sb.Append(Environment.NewLine);
-                    sb.Append(exception.InnerException.GetMessages());
-                }
+                sb.Append(Environment.NewLine);
+                sb.Append(exception.InnerException.GetMessages());
             }
-
-            return sb.ToString();
         }
+
+        return sb.ToString();
     }
 }

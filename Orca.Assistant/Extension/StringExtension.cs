@@ -3,192 +3,200 @@
  * Ver 1.0  14010426 1837
  */
 
+using System.Globalization;
 using System.Text.RegularExpressions;
 
-namespace AryaVtd.Orca.Assistant
+namespace AryaVtd.Orca.Assistant;
+
+public static class StringExtension
 {
-    public static class StringExtension
+    /// <summary>
+    /// برش تعداد کلمات دلخواه به اندازه تعیین شده و به اندازه حداکثر تعداد کاراکتر تعیین شده
+    /// </summary>
+    /// <param name="text">متن برای برش زدن</param>
+    /// <param name="count">تعداد کلماتی که باید در برش موجود باشد</param>
+    /// <param name="addEllipsis">اضافه کردن سه نقطه آخر خط</param>
+    /// <param name="maxLength">حداکثر طول متن برش خورده، مقدار پیش فرض 256 کاراکتر</param>
+    /// <returns>متن برش خورده</returns>
+    public static string GetWords(this string text, int count, bool addEllipsis = true, int maxLength = 128)
     {
-        #region String Utility Methods
+        string retValue = "";
+        string tmpString = "";
+        string[] words;
 
-        /// <summary>
-        /// برش تعداد کلمات دلخواه به اندازه تعیین شده و به اندازه حداکثر تعداد کاراکتر تعیین شده
-        /// </summary>
-        /// <param name="text">متن برای برش زدن</param>
-        /// <param name="count">تعداد کلماتی که باید در برش موجود باشد</param>
-        /// <param name="addEllipsis">اضافه کردن سه نقطه آخر خط</param>
-        /// <param name="maxLength">حداکثر طول متن برش خورده، مقدار پیش فرض 256 کاراکتر</param>
-        /// <returns>متن برش خورده</returns>
-        public static string GetWords(this string text, int count, bool addEllipsis = true, int maxLength = 128)
+        tmpString = text.Replace("\r\n", " ");
+        words = tmpString.Split(' ');
+
+        if (count <= words.Length)
         {
-            string retValue = "";
-            string tmpString = "";
-            string[] words;
+            for (int i = 0; i < count; i++)
+                retValue += words[i] + " ";
+            if (retValue.Length > maxLength && maxLength != 0)
+                retValue = retValue.Substring(0, maxLength);
+            if (addEllipsis)
+                retValue += "...";
+        }
+        else
+            retValue = tmpString;
 
-            tmpString = text.Replace("\r\n", " ");
-            words = tmpString.Split(' ');
+        return retValue.Trim();
+    }
 
-            if (count <= words.Length)
+    /// <summary>
+    /// Remove all HTML tag and element from string (useful for strip user input, msword data and ...)
+    /// </summary>
+    public static string StripHTML(this string htmlString)
+    {
+        string retValue = string.Empty;
+
+        if (!string.IsNullOrEmpty(htmlString))
+        {
+            string pattern = "<.*?>";
+            string str = Regex.Replace(htmlString, pattern, string.Empty);
+            pattern = "&nbsp;";
+            str = Regex.Replace(str, pattern, string.Empty);
+            retValue = str;
+        }
+        return retValue;
+    }
+
+    /// <summary>
+    /// Cleans up text to make a nice little URL string
+    /// </summary>
+    public static string ToFriendlyURL(this string strUrl, bool isPersian = true, byte maxLetters = 80)
+    {
+        string retVal = "";
+
+        if (!string.IsNullOrEmpty(strUrl))
+        {
+            if (!isPersian)
             {
-                for (int i = 0; i < count; i++)
-                    retValue += words[i] + " ";
-                if (retValue.Length > maxLength && maxLength != 0)
-                    retValue = retValue.Substring(0, maxLength);
-                if (addEllipsis)
-                    retValue += "...";
+                strUrl = strUrl.ToLower();
+                // remove anything that is not letters, numbers, dash, or space
+                strUrl = Regex.Replace(strUrl, @"[^a-z0-9\-\s]", "");
+            }
+
+            strUrl = Regex.Replace(strUrl, @"&\w+;", "");// remove entities
+
+            strUrl = strUrl.Replace("™", "").Replace("&trade;", "")
+                .Replace("©", "").Replace("&copy;", "")
+                .Replace(".", "").Replace(":", "")
+                .Replace("?", "").Replace("!", "").Replace("*", "")
+                .Replace("'", "").Replace("\"", "").Replace("%", "")
+                .Replace("/", "").Replace("&", "").Replace("#", "")
+                .Replace("  ", " ").Replace(" ", "-")
+                .Replace("«", "").Replace("»", "")
+                .Replace("،", "").Replace(",", "").Replace("؛", "");
+
+            strUrl = Regex.Replace(strUrl, @"-{2,}", "-");// collapse dashes
+            strUrl = strUrl.TrimStart(new[] { '-' });// trim excessive dashes at the beginning
+            strUrl = strUrl.TrimEnd(new[] { '-' });// remove trailing dashes
+
+            // if it's too long, clip it
+            if (strUrl.Length > maxLetters)
+                strUrl = strUrl.Substring(0, maxLetters - 1);
+
+            retVal = strUrl;
+        }
+        else
+        {
+            retVal = string.Empty;
+        }
+
+        return retVal;
+    }
+
+    /// <summary>
+    /// Trim spaces from start or end of string
+    /// Remove multiple empty lines
+    /// </summary>
+    public static string DecorateText(this string text, bool showEmptyAsDash = true, string emptyText = "-")
+    {
+        string retVal = "";
+
+        if (!string.IsNullOrEmpty(text))
+        {
+            retVal = Regex.Replace(text, @"^\s+$[\r\n]*", Environment.NewLine, RegexOptions.Multiline);
+            retVal = Regex.Replace(retVal, "\r?\n|\r", "<br />");
+        }
+        else if (showEmptyAsDash)
+            retVal = emptyText;
+
+        return retVal;
+    }
+
+    public static bool IsExistPersianLetter(this string text)
+    {
+        bool retVal = false;
+
+        if (!string.IsNullOrEmpty(text))
+        {
+            string persianPattern = @"^[\u0600-\u06FF\uFB8A\u067E\u0686\u06AF\u200C\u200F ]+$";
+            Regex expValidator = new(persianPattern);
+            retVal = expValidator.IsMatch(text);
+        }
+
+        return retVal;
+    }
+
+    /// <summary>
+    /// شمارش تعداد صفحه پیامک بر اساس متن (فارسی یا انگلیسی) و تعداد کاراکتر آن
+    /// </summary>
+    public static int CountSMSPages(this string message)
+    {
+        int retVal = 0;
+
+        if (!string.IsNullOrEmpty(message))
+        {
+            bool isPersian = message.IsExistPersianLetter();
+
+            int firstPageCount;
+            int secondPageCount;
+            int otherPageCount;
+
+            if (isPersian)
+            {
+                firstPageCount = 70;
+                secondPageCount = 64;
+                otherPageCount = 67;
             }
             else
-                retValue = tmpString;
-
-            return retValue.Trim();
-        }
-
-        /// <summary>
-        /// Remove all HTML tag and element from string (useful for strip user input, msword data and ...)
-        /// </summary>
-        public static string StripHTML(this string htmlString)
-        {
-            string retValue = string.Empty;
-
-            if (!string.IsNullOrEmpty(htmlString))
             {
-                string pattern = "<.*?>";
-                string str = Regex.Replace(htmlString, pattern, string.Empty);
-                pattern = "&nbsp;";
-                str = Regex.Replace(str, pattern, string.Empty);
-                retValue = str;
+                firstPageCount = 160;
+                secondPageCount = 146;
+                otherPageCount = 153;
             }
-            return retValue;
-        }
 
-        /// <summary>
-        /// Cleans up text to make a nice little URL string
-        /// </summary>
-        public static string ToFriendlyURL(this string strUrl, bool isPersian = true, byte maxLetters = 80)
-        {
-            string retVal = "";
-
-            if (!string.IsNullOrEmpty(strUrl))
+            if (message.Length > firstPageCount)
             {
-                if (!isPersian)
+                if (message.Length > firstPageCount + secondPageCount)
                 {
-                    strUrl = strUrl.ToLower();
-                    // remove anything that is not letters, numbers, dash, or space
-                    strUrl = Regex.Replace(strUrl, @"[^a-z0-9\-\s]", "");
-                }
-
-                strUrl = Regex.Replace(strUrl, @"&\w+;", "");// remove entities
-
-                strUrl = strUrl.Replace("™", "").Replace("&trade;", "")
-                    .Replace("©", "").Replace("&copy;", "")
-                    .Replace(".", "").Replace(":", "")
-                    .Replace("?", "").Replace("!", "").Replace("*", "")
-                    .Replace("'", "").Replace("\"", "").Replace("%", "")
-                    .Replace("/", "").Replace("&", "").Replace("#", "")
-                    .Replace("  ", " ").Replace(" ", "-")
-                    .Replace("«", "").Replace("»", "")
-                    .Replace("،", "").Replace(",", "").Replace("؛", "");
-
-                strUrl = Regex.Replace(strUrl, @"-{2,}", "-");// collapse dashes
-                strUrl = strUrl.TrimStart(new[] { '-' });// trim excessive dashes at the beginning
-                strUrl = strUrl.TrimEnd(new[] { '-' });// remove trailing dashes
-
-                // if it's too long, clip it
-                if (strUrl.Length > maxLetters)
-                    strUrl = strUrl.Substring(0, maxLetters - 1);
-
-                retVal = strUrl;
-            }
-            else
-            {
-                retVal = string.Empty;
-            }
-
-            return retVal;
-        }
-
-        /// <summary>
-        /// Trim spaces from start or end of string
-        /// Remove multiple empty lines
-        /// </summary>
-        public static string DecorateText(this string text, bool showEmptyAsDash = true, string emptyText = "-")
-        {
-            string retVal = "";
-
-            if (!string.IsNullOrEmpty(text))
-            {
-                retVal = Regex.Replace(text, @"^\s+$[\r\n]*", Environment.NewLine, RegexOptions.Multiline);
-                retVal = Regex.Replace(retVal, "\r?\n|\r", "<br />");
-            }
-            else if (showEmptyAsDash)
-                retVal = emptyText;
-
-            return retVal;
-        }
-
-        public static bool IsExistPersianLetter(this string text)
-        {
-            bool retVal = false;
-
-            if (!string.IsNullOrEmpty(text))
-            {
-                string persianPattern = @"^[\u0600-\u06FF\uFB8A\u067E\u0686\u06AF\u200C\u200F ]+$";
-                Regex expValidator = new(persianPattern);
-                retVal = expValidator.IsMatch(text);
-            }
-
-            return retVal;
-        }
-
-        /// <summary>
-        /// شمارش تعداد صفحه پیامک بر اساس متن (فارسی یا انگلیسی) و تعداد کاراکتر آن
-        /// </summary>
-        public static int CountSMSPages(this string message)
-        {
-            int retVal = 0;
-
-            if (!string.IsNullOrEmpty(message))
-            {
-                bool isPersian = message.IsExistPersianLetter();
-
-                int firstPageCount;
-                int secondPageCount;
-                int otherPageCount;
-
-                if (isPersian)
-                {
-                    firstPageCount = 70;
-                    secondPageCount = 64;
-                    otherPageCount = 67;
-                }
-                else
-                {
-                    firstPageCount = 160;
-                    secondPageCount = 146;
-                    otherPageCount = 153;
-                }
-
-                if (message.Length > firstPageCount)
-                {
-                    if (message.Length > firstPageCount + secondPageCount)
+                    if (message.Length - (firstPageCount + secondPageCount) > 0)
                     {
-                        if (message.Length - (firstPageCount + secondPageCount) > 0)
-                        {
-                            retVal = (message.Length - (firstPageCount + secondPageCount)) / otherPageCount + 2;
-                            if ((message.Length - (firstPageCount + secondPageCount)) % otherPageCount > 0)
-                                retVal++;
-                        }
+                        retVal = (message.Length - (firstPageCount + secondPageCount)) / otherPageCount + 2;
+                        if ((message.Length - (firstPageCount + secondPageCount)) % otherPageCount > 0)
+                            retVal++;
                     }
-                    else
-                        retVal = 2;
                 }
                 else
-                    retVal = 1;
+                    retVal = 2;
             }
-
-            return retVal;
+            else
+                retVal = 1;
         }
 
-        #endregion
+        return retVal;
+    }
+
+    /// <summary>
+    /// تبدیل تاریخ میلادی که با خط تیره جدا شده به فرمت تاریخ-ساعت
+    /// </summary>
+    public static DateTime ParseDateInvariant(this string date, bool addLastTimeOfDay = false)
+    {
+        date = date.Replace("-", "/");
+        if (addLastTimeOfDay)
+            return DateTime.Parse(date + " 23:59:59", CultureInfo.InvariantCulture);
+        else
+            return DateTime.Parse(date, CultureInfo.InvariantCulture);
     }
 }
